@@ -92,6 +92,32 @@ export default function Dashboard() {
     return [...map.values()].sort((a, b) => a.date.localeCompare(b.date))
   }, [data])
 
+  const dailyTokensFmt = useMemo(() => {
+    let max = 0
+    for (const s of dailySeries) max = Math.max(max, s.tokens)
+
+    const absMax = Math.abs(max)
+    let divisor = 1
+    let suffix = ''
+    if (absMax >= 1_000_000_000) {
+      divisor = 1_000_000_000
+      suffix = 'B'
+    } else if (absMax >= 1_000_000) {
+      divisor = 1_000_000
+      suffix = 'M'
+    } else if (absMax >= 1_000) {
+      divisor = 1_000
+      suffix = 'K'
+    }
+
+    return (v: unknown): string => {
+      const n = typeof v === 'number' ? v : Number(v)
+      if (!Number.isFinite(n)) return ''
+      if (divisor === 1) return intFmt.format(n)
+      return `${(n / divisor).toFixed(1)}${suffix}`
+    }
+  }, [dailySeries])
+
   return (
     <div>
       <div className="toolbar">
@@ -156,10 +182,11 @@ export default function Dashboard() {
                 <YAxis
                   stroke="rgba(255,255,255,0.6)"
                   tick={{ fontSize: 12 }}
-                  width={54}
+                  width={70}
+                  tickFormatter={dailyTokensFmt}
                 />
                 <Tooltip
-                  formatter={(v) => intFmt.format(typeof v === 'number' ? v : Number(v))}
+                  formatter={(v) => dailyTokensFmt(v)}
                 />
                 <Legend />
                 <Area
