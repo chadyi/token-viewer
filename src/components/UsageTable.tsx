@@ -66,7 +66,7 @@ export default function UsageTable({ data }: Props) {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr>
-              {['Model', 'Requests', 'Input', 'Output', 'Cache Read', 'Cache Write', 'Cost'].map(
+              {['Model', 'Requests', 'Input', 'Output', 'Cache Read', 'Cache Write', 'Total', 'Cost'].map(
                 (h) => (
                   <th
                     key={h}
@@ -88,7 +88,7 @@ export default function UsageTable({ data }: Props) {
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td className="muted" colSpan={7} style={{ padding: 12, textAlign: 'center' }}>
+                <td className="muted" colSpan={8} style={{ padding: 12, textAlign: 'center' }}>
                   No data
                 </td>
               </tr>
@@ -110,6 +110,9 @@ export default function UsageTable({ data }: Props) {
                   </td>
                   <td style={{ padding: '10px 8px', textAlign: 'right' }}>
                     {numFmt.format(r.cache_write_tokens)}
+                  </td>
+                  <td style={{ padding: '10px 8px', textAlign: 'right' }}>
+                    {numFmt.format(totalTokens(r))}
                   </td>
                   <td style={{ padding: '10px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                     {usdFmt.format(r.cost)}

@@ -17,6 +17,7 @@ import type React from 'react'
 import { useUsageData } from '../hooks/useUsageData'
 import type { UsageEntry } from '../types'
 import StatsCard from './StatsCard'
+import DateTable from './DateTable'
 import UsageTable from './UsageTable'
 
 const intFmt = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 })
@@ -66,9 +67,9 @@ function DailyTooltip({
     <div style={darkTooltipStyle}>
       <div style={{ fontWeight: 600, marginBottom: 6 }}>{d.date}</div>
       <div>Requests: {intFmt.format(d.requests)}</div>
-      <div>Input Tokens: {intFmt.format(d.input)}</div>
-      <div>Output Tokens: {intFmt.format(d.output)}</div>
-      <div>Total Tokens: {intFmt.format(d.tokens)}</div>
+      <div>Input: {intFmt.format(d.input)}</div>
+      <div>Output: {intFmt.format(d.output)}</div>
+      <div>Total: {intFmt.format(d.tokens)}</div>
       <div>Cost: {usdFmt.format(d.cost)}</div>
     </div>
   )
@@ -279,6 +280,9 @@ export default function Dashboard() {
 
       <div style={{ marginTop: 12 }}>
         <UsageTable data={data} />
+      </div>
+      <div style={{ marginTop: 12 }}>
+        <DateTable data={data} />
       </div>
     </div>
   )

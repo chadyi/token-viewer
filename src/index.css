@@ -1,8 +1,8 @@
 :root {
   color-scheme: dark;
 
-  --bg0: #0b0e14;
-  --bg1: #101a2b;
+  --bg0: #121212;
+  --bg1: #121212;
   --panel: rgba(255, 255, 255, 0.06);
   --panel2: rgba(255, 255, 255, 0.09);
   --border: rgba(255, 255, 255, 0.12);
@@ -22,7 +22,7 @@ body,
 body {
   margin: 0;
   color: var(--text);
-  background: linear-gradient(180deg, var(--bg1), var(--bg0));
+  background: #121212;
   font-family:
     ui-sans-serif,
     system-ui,
@@ -106,6 +106,16 @@ a:hover {
 
 .btn:hover {
   border-color: rgba(255, 255, 255, 0.22);
+}
+
+.btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn-group {
+  display: flex;
+  gap: 6px;
 }
 
 .muted {
