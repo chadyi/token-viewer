@@ -10,6 +10,104 @@ use std::fs::{self, File};
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
+use std::collections::HashMap;
+use once_cell::sync::Lazy;
+
+struct PricingInfo {
+  input_cost_per_token: f64,
+  output_cost_per_token: f64,
+  cache_read_cost: f64,
+  cache_write_cost: f64,
+}
+
+fn load_pricing() -> HashMap<String, PricingInfo> {
+  let url = "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json";
+  let resp = match reqwest::blocking::get(url) {
+    Ok(r) => r,
+    Err(e) => {
+      log::warn!("Failed to fetch LiteLLM pricing: {e}");
+      return HashMap::new();
+    }
+  };
+  let json: Value = match resp.json() {
+    Ok(v) => v,
+    Err(e) => {
+      log::warn!("Failed to parse LiteLLM pricing: {e}");
+      return HashMap::new();
+    }
+  };
+  let obj = match json.as_object() {
+    Some(o) => o,
+    None => return HashMap::new(),
+  };
+  let mut map = HashMap::new();
+  for (key, val) in obj {
+    let input = val
+      .get("input_cost_per_token")
+      .and_then(|v| v.as_f64())
+      .unwrap_or(0.0);
+    let output = val
+      .get("output_cost_per_token")
+      .and_then(|v| v.as_f64())
+      .unwrap_or(0.0);
+    if input == 0.0 && output == 0.0 {
+      continue;
+    }
+    let cache_read = val
+      .get("cache_read_input_token_cost")
+      .and_then(|v| v.as_f64())
+      .unwrap_or(0.0);
+    let cache_write = val
+      .get("cache_creation_input_token_cost")
+      .and_then(|v| v.as_f64())
+      .unwrap_or(0.0);
+    map.insert(
+      key.clone(),
+      PricingInfo {
+        input_cost_per_token: input,
+        output_cost_per_token: output,
+        cache_read_cost: cache_read,
+        cache_write_cost: cache_write,
+      },
+    );
+  }
+  map
+}
+
+static PRICING: Lazy<HashMap<String, PricingInfo>> = Lazy::new(load_pricing);
+
+fn find_pricing(model: &str) -> Option<&'static PricingInfo> {
+  // exact match
+  if let Some(p) = PRICING.get(model) {
+    return Some(p);
+  }
+  // with provider prefix
+  for prefix in ["anthropic/", "openai/", "azure/", "google/", "vertex_ai/"] {
+    let key = format!("{prefix}{model}");
+    if let Some(p) = PRICING.get(&key) {
+      return Some(p);
+    }
+  }
+  // fuzzy: model contains key or key contains model
+  for (key, p) in PRICING.iter() {
+    if key.contains(model) || model.contains(key.as_str()) {
+      return Some(p);
+    }
+  }
+  None
+}
+
+fn estimate_cost(model: &str, input: u64, output: u64, cache_read: u64, cache_write: u64) -> f64 {
+  let Some(p) = find_pricing(model) else {
+    return 0.0;
+  };
+  let base_input = if input > cache_read { input - cache_read } else { 0 };
+  base_input as f64 * p.input_cost_per_token
+    + output as f64 * p.output_cost_per_token
+    + cache_read as f64 * p.cache_read_cost
+    + cache_write as f64 * p.cache_write_cost
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct UsageEntry {
   pub timestamp: String,
@@ -180,6 +278,8 @@ fn scan_claude_usage_impl() -> Vec<UsageEntry> {
         .unwrap_or("unknown")
         .to_string();
 
+      let cost = if cost == 0.0 && model != "unknown" { estimate_cost(&model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens) } else { cost };
+
       out.push(UsageEntry {
         timestamp,
         tool: "Claude".to_string(),
@@ -262,12 +362,12 @@ fn scan_codex_usage_impl() -> Vec<UsageEntry> {
       out.push(UsageEntry {
         timestamp,
         tool: "Codex".to_string(),
+        cost: estimate_cost(&model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens),
         model,
         input_tokens,
         output_tokens,
         cache_read_tokens,
         cache_write_tokens,
-        cost: 0.0,
       });
     }
   }
@@ -319,6 +419,8 @@ fn scan_opencode_usage_impl() -> Vec<UsageEntry> {
       .and_then(|m| m.as_str())
       .unwrap_or("unknown")
       .to_string();
+
+    let cost = if cost == 0.0 && model != "unknown" { estimate_cost(&model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens) } else { cost };
 
     out.push(UsageEntry {
       timestamp,

@@ -12,6 +12,7 @@ import {
   YAxis,
 } from 'recharts'
 import { useMemo } from 'react'
+import type React from 'react'
 
 import { useUsageData } from '../hooks/useUsageData'
 import type { UsageEntry } from '../types'
@@ -24,6 +25,54 @@ const usdFmt = new Intl.NumberFormat('en-US', {
   currency: 'USD',
   maximumFractionDigits: 6,
 })
+
+const darkTooltipStyle: React.CSSProperties = {
+  backgroundColor: 'rgba(16, 26, 43, 0.95)',
+  border: '1px solid rgba(255,255,255,0.12)',
+  borderRadius: 10,
+  padding: '10px 14px',
+  color: 'rgba(255,255,255,0.92)',
+  fontSize: 13,
+}
+
+type DailyPoint = {
+  date: string
+  tokens: number
+  requests: number
+  input: number
+  output: number
+  cost: number
+}
+
+function DailyTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean
+  payload?: Array<{
+    payload: {
+      date: string
+      tokens: number
+      requests: number
+      input: number
+      output: number
+      cost: number
+    }
+  }>
+}) {
+  if (!active || !payload?.length) return null
+  const d = payload[0].payload
+  return (
+    <div style={darkTooltipStyle}>
+      <div style={{ fontWeight: 600, marginBottom: 6 }}>{d.date}</div>
+      <div>Requests: {intFmt.format(d.requests)}</div>
+      <div>Input Tokens: {intFmt.format(d.input)}</div>
+      <div>Output Tokens: {intFmt.format(d.output)}</div>
+      <div>Total Tokens: {intFmt.format(d.tokens)}</div>
+      <div>Cost: {usdFmt.format(d.cost)}</div>
+    </div>
+  )
+}
 
 const TOOL_COLORS: Record<string, string> = {
   Claude: '#7bdff2',
@@ -80,13 +129,24 @@ export default function Dashboard() {
   }, [data])
 
   const dailySeries = useMemo(() => {
-    const map = new Map<string, { date: string; tokens: number }>()
+    const map = new Map<string, DailyPoint>()
     for (const e of data) {
       const d = safeDate(e.timestamp)
       if (!d) continue
       const key = localDayKey(d)
-      const cur = map.get(key) ?? { date: key, tokens: 0 }
+      const cur = map.get(key) ?? {
+        date: key,
+        tokens: 0,
+        requests: 0,
+        input: 0,
+        output: 0,
+        cost: 0,
+      }
       cur.tokens += sumTokens(e)
+      cur.requests += 1
+      cur.input += e.input_tokens
+      cur.output += e.output_tokens
+      cur.cost += e.cost
       map.set(key, cur)
     }
     return [...map.values()].sort((a, b) => a.date.localeCompare(b.date))
@@ -154,6 +214,11 @@ export default function Dashboard() {
                   ))}
                 </Pie>
                 <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'rgba(16, 26, 43, 0.95)',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    borderRadius: 10,
+                  }}
                   formatter={(v) => intFmt.format(typeof v === 'number' ? v : Number(v))}
                 />
                 <Legend />
@@ -185,9 +250,7 @@ export default function Dashboard() {
                   width={70}
                   tickFormatter={dailyTokensFmt}
                 />
-                <Tooltip
-                  formatter={(v) => dailyTokensFmt(v)}
-                />
+                <Tooltip content={<DailyTooltip />} />
                 <Legend />
                 <Area
                   type="monotone"
