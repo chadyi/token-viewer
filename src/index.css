@@ -22,10 +22,7 @@ body,
 body {
   margin: 0;
   color: var(--text);
-  background:
-    radial-gradient(1200px 800px at 18% -10%, rgba(123, 223, 242, 0.18), transparent 60%),
-    radial-gradient(900px 700px at 92% 0%, rgba(255, 211, 122, 0.12), transparent 60%),
-    linear-gradient(180deg, var(--bg1), var(--bg0));
+  background: linear-gradient(180deg, var(--bg1), var(--bg0));
   font-family:
     ui-sans-serif,
     system-ui,
@@ -114,4 +111,3 @@ a:hover {
 .muted {
   color: var(--muted);
 }
-

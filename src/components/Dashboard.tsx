@@ -27,7 +27,7 @@ const usdFmt = new Intl.NumberFormat('en-US', {
 })
 
 const darkTooltipStyle: React.CSSProperties = {
-  backgroundColor: 'rgba(16, 26, 43, 0.95)',
+  backgroundColor: 'rgba(11, 14, 20, 0.95)',
   border: '1px solid rgba(255,255,255,0.12)',
   borderRadius: 10,
   padding: '10px 14px',
@@ -206,24 +206,34 @@ export default function Dashboard() {
         <div className="panel">
           <div className="h1">By Tool</div>
           <div style={{ height: 260 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={toolPie} dataKey="value" nameKey="name" outerRadius={90} label>
-                  {toolPie.map((s, i) => (
-                    <Cell key={i} fill={TOOL_COLORS[s.name] ?? '#9aa7b6'} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'rgba(16, 26, 43, 0.95)',
-                    border: '1px solid rgba(255,255,255,0.12)',
-                    borderRadius: 10,
-                  }}
-                  formatter={(v) => intFmt.format(typeof v === 'number' ? v : Number(v))}
-                />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
+	            <ResponsiveContainer width="100%" height="100%">
+	              <PieChart>
+	                <Pie
+	                  data={toolPie}
+	                  dataKey="value"
+	                  nameKey="name"
+	                  outerRadius={90}
+	                  label={({ value }) =>
+	                    intFmt.format(typeof value === 'number' ? value : Number(value))
+	                  }
+	                >
+	                  {toolPie.map((s, i) => (
+	                    <Cell key={i} fill={TOOL_COLORS[s.name] ?? '#9aa7b6'} />
+	                  ))}
+	                </Pie>
+	                <Tooltip
+	                  contentStyle={{
+	                    backgroundColor: 'rgba(11, 14, 20, 0.95)',
+	                    border: '1px solid rgba(255,255,255,0.12)',
+	                    borderRadius: 10,
+	                  }}
+	                  itemStyle={{ color: 'rgba(255,255,255,0.92)' }}
+	                  labelStyle={{ color: 'rgba(255,255,255,0.92)' }}
+	                  formatter={(v) => intFmt.format(typeof v === 'number' ? v : Number(v))}
+	                />
+	                <Legend />
+	              </PieChart>
+	            </ResponsiveContainer>
           </div>
         </div>
 
