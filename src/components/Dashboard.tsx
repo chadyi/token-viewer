@@ -184,7 +184,7 @@ export default function Dashboard() {
       <div className="toolbar">
         <div>
           <div className="h1" style={{ margin: 0 }}>
-            ccusage Viewer
+            Token Viewer
           </div>
           <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
             {loading ? 'Scanning local logs...' : `Entries: ${intFmt.format(data.length)}`}
