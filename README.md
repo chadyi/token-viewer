@@ -4,6 +4,23 @@ A desktop application for visualizing token usage and costs from AI coding tools
 
 Built with [Tauri v2](https://tauri.app/) + React 19 + TypeScript.
 
+## Screenshots
+
+### Dashboard
+Stats cards, token usage trend chart, and tool breakdown pie chart.
+
+![Dashboard](docs/screenshots/dashboard.png)
+
+### By Date (with expandable detail)
+Group usage by Day / Week / Month / Year. Click any row to expand per-model breakdown.
+
+![By Date](docs/screenshots/bydate.png)
+
+### By Model (All)
+Switch to "All" to see a flat table of all models sorted by cost.
+
+![By Model](docs/screenshots/bymodel.png)
+
 ## Features
 
 - **Local-only** — scans JSONL/JSON logs on your machine, no data leaves your computer
