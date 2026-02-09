@@ -18,7 +18,6 @@ import { useUsageData } from '../hooks/useUsageData'
 import type { UsageEntry } from '../types'
 import StatsCard from './StatsCard'
 import DateTable from './DateTable'
-import UsageTable from './UsageTable'
 
 const intFmt = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 })
 const usdFmt = new Intl.NumberFormat('en-US', {
@@ -278,9 +277,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div style={{ marginTop: 12 }}>
-        <UsageTable data={data} />
-      </div>
       <div style={{ marginTop: 12 }}>
         <DateTable data={data} />
       </div>

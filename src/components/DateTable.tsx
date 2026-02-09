@@ -10,7 +10,7 @@ const usdFmt = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 6,
 })
 
-type Granularity = 'day' | 'week' | 'month'
+type Granularity = 'day' | 'week' | 'month' | 'year' | 'all'
 
 type DateRow = {
   date: string
@@ -52,6 +52,10 @@ function localMonthKey(d: Date): string {
   const yyyy = d.getFullYear()
   const mm = String(d.getMonth() + 1).padStart(2, '0')
   return `${yyyy}-${mm}`
+}
+
+function localYearKey(d: Date): string {
+  return `${d.getFullYear()}`
 }
 
 function isoWeekKey(d: Date): string {
@@ -99,7 +103,9 @@ export default function DateTable({ data }: Props) {
           ? localDayKey(d)
           : granularity === 'week'
             ? isoWeekKey(d)
-            : localMonthKey(d)
+            : granularity === 'year'
+              ? localYearKey(d)
+              : localMonthKey(d)
 
       const cur =
         rowMap.get(key) ??
@@ -165,6 +171,39 @@ export default function DateTable({ data }: Props) {
     })
   }, [entriesByKey, expandedKey])
 
+  // "All" mode: flat model table across all data
+  const allModelRows = useMemo<ModelRow[]>(() => {
+    if (granularity !== 'all') return []
+    const map = new Map<string, ModelRow>()
+    for (const e of data) {
+      const cur =
+        map.get(e.model) ??
+        ({
+          model: e.model,
+          requests: 0,
+          input_tokens: 0,
+          output_tokens: 0,
+          cache_read_tokens: 0,
+          cache_write_tokens: 0,
+          cost: 0,
+        } satisfies ModelRow)
+
+      cur.requests += 1
+      cur.input_tokens += e.input_tokens
+      cur.output_tokens += e.output_tokens
+      cur.cache_read_tokens += e.cache_read_tokens
+      cur.cache_write_tokens += e.cache_write_tokens
+      cur.cost += e.cost
+      map.set(e.model, cur)
+    }
+
+    return [...map.values()].sort((a, b) => {
+      const costDiff = b.cost - a.cost
+      if (costDiff !== 0) return costDiff
+      return totalTokens(b) - totalTokens(a)
+    })
+  }, [data, granularity])
+
   return (
     <div className="panel">
       <div
@@ -177,7 +216,7 @@ export default function DateTable({ data }: Props) {
         }}
       >
         <div className="h1" style={{ margin: 0 }}>
-          By Date
+          {granularity === 'all' ? 'By Model' : 'By Date'}
         </div>
         <div className="btn-group">
           <button
@@ -198,6 +237,18 @@ export default function DateTable({ data }: Props) {
           >
             Month
           </button>
+          <button
+            className={`btn${granularity === 'year' ? ' active' : ''}`}
+            onClick={() => setGranularity('year')}
+          >
+            Year
+          </button>
+          <button
+            className={`btn${granularity === 'all' ? ' active' : ''}`}
+            onClick={() => setGranularity('all')}
+          >
+            All
+          </button>
         </div>
       </div>
 
@@ -205,27 +256,51 @@ export default function DateTable({ data }: Props) {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr>
-              {['Date', 'Requests', 'Input', 'Output', 'Cache Read', 'Cache Write', 'Total', 'Cost'].map(
-                (h) => (
-                  <th
-                    key={h}
-                    className="muted"
-                    style={{
-                      textAlign: h === 'Date' ? 'left' : 'right',
-                      fontWeight: 600,
-                      padding: '10px 8px',
-                      borderBottom: '1px solid rgba(255,255,255,0.12)',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {h}
-                  </th>
-                ),
-              )}
+              {(granularity === 'all'
+                ? ['Model', 'Requests', 'Input', 'Output', 'Cache Read', 'Cache Write', 'Total', 'Cost']
+                : ['Date', 'Requests', 'Input', 'Output', 'Cache Read', 'Cache Write', 'Total', 'Cost']
+              ).map((h) => (
+                <th
+                  key={h}
+                  className="muted"
+                  style={{
+                    textAlign: h === 'Date' || h === 'Model' ? 'left' : 'right',
+                    fontWeight: 600,
+                    padding: '10px 8px',
+                    borderBottom: '1px solid rgba(255,255,255,0.12)',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {h}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {rows.length === 0 ? (
+            {granularity === 'all' ? (
+              allModelRows.length === 0 ? (
+                <tr>
+                  <td className="muted" colSpan={8} style={{ padding: 12, textAlign: 'center' }}>
+                    No data
+                  </td>
+                </tr>
+              ) : (
+                allModelRows.map((mr, idx) => (
+                  <tr key={`${mr.model}:${idx}`}>
+                    <td style={{ padding: '10px 8px', textAlign: 'left', whiteSpace: 'nowrap' }}>
+                      {mr.model}
+                    </td>
+                    <td style={{ padding: '10px 8px', textAlign: 'right' }}>{numFmt.format(mr.requests)}</td>
+                    <td style={{ padding: '10px 8px', textAlign: 'right' }}>{numFmt.format(mr.input_tokens)}</td>
+                    <td style={{ padding: '10px 8px', textAlign: 'right' }}>{numFmt.format(mr.output_tokens)}</td>
+                    <td style={{ padding: '10px 8px', textAlign: 'right' }}>{numFmt.format(mr.cache_read_tokens)}</td>
+                    <td style={{ padding: '10px 8px', textAlign: 'right' }}>{numFmt.format(mr.cache_write_tokens)}</td>
+                    <td style={{ padding: '10px 8px', textAlign: 'right' }}>{numFmt.format(totalTokens(mr))}</td>
+                    <td style={{ padding: '10px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>{usdFmt.format(mr.cost)}</td>
+                  </tr>
+                ))
+              )
+            ) : rows.length === 0 ? (
               <tr>
                 <td className="muted" colSpan={8} style={{ padding: 12, textAlign: 'center' }}>
                   No data
