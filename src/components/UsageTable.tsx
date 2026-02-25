@@ -16,15 +16,12 @@ type ModelRow = {
   output_tokens: number
   cache_read_tokens: number
   cache_write_tokens: number
+  total_tokens: number
   cost: number
 }
 
 type Props = {
   data: UsageEntry[]
-}
-
-function totalTokens(r: ModelRow): number {
-  return r.input_tokens + r.output_tokens + r.cache_read_tokens + r.cache_write_tokens
 }
 
 export default function UsageTable({ data }: Props) {
@@ -40,6 +37,7 @@ export default function UsageTable({ data }: Props) {
           output_tokens: 0,
           cache_read_tokens: 0,
           cache_write_tokens: 0,
+          total_tokens: 0,
           cost: 0,
         } satisfies ModelRow)
 
@@ -48,6 +46,7 @@ export default function UsageTable({ data }: Props) {
       cur.output_tokens += e.output_tokens
       cur.cache_read_tokens += e.cache_read_tokens
       cur.cache_write_tokens += e.cache_write_tokens
+      cur.total_tokens += e.total_tokens
       cur.cost += e.cost
       map.set(e.model, cur)
     }
@@ -55,7 +54,7 @@ export default function UsageTable({ data }: Props) {
     return [...map.values()].sort((a, b) => {
       const costDiff = b.cost - a.cost
       if (costDiff !== 0) return costDiff
-      return totalTokens(b) - totalTokens(a)
+      return b.total_tokens - a.total_tokens
     })
   }, [data])
 
@@ -112,7 +111,7 @@ export default function UsageTable({ data }: Props) {
                     {numFmt.format(r.cache_write_tokens)}
                   </td>
                   <td style={{ padding: '10px 8px', textAlign: 'right' }}>
-                    {numFmt.format(totalTokens(r))}
+                    {numFmt.format(r.total_tokens)}
                   </td>
                   <td style={{ padding: '10px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                     {usdFmt.format(r.cost)}

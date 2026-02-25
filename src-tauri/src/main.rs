@@ -196,7 +196,7 @@ fn estimate_cost(model: &str, input: u64, output: u64, cache_read: u64, cache_wr
   let Some(p) = find_pricing(model) else {
     return 0.0;
   };
-  // Match original ccusage: input_tokens * price (NO subtraction of cache_read)
+  // Callers should pass provider-specific input semantics (e.g. uncached input for Codex).
   let input_cost = tiered_cost(input, p.input_cost_per_token, p.input_cost_above_200k);
   let output_cost = tiered_cost(output, p.output_cost_per_token, p.output_cost_above_200k);
   let cache_read_cost = tiered_cost(cache_read, p.cache_read_cost, p.cache_read_cost_above_200k);
@@ -213,6 +213,7 @@ pub struct UsageEntry {
   pub output_tokens: u64,
   pub cache_read_tokens: u64,
   pub cache_write_tokens: u64,
+  pub total_tokens: u64,
   pub cost: f64,
 }
 
@@ -331,6 +332,17 @@ fn value_f64(value: Option<&Value>) -> f64 {
   }
 }
 
+fn total_tokens_with_cache(input: u64, output: u64, cache_read: u64, cache_write: u64) -> u64 {
+  input
+    .saturating_add(output)
+    .saturating_add(cache_read)
+    .saturating_add(cache_write)
+}
+
+fn total_tokens_without_cache(input: u64, output: u64) -> u64 {
+  input.saturating_add(output)
+}
+
 fn scan_claude_usage_impl() -> Vec<UsageEntry> {
   scan_claude_incremental(&mut HashMap::new())
 }
@@ -390,6 +402,23 @@ fn scan_claude_incremental(offsets: &mut HashMap<String, u64>) -> Vec<UsageEntry
       let output_tokens = value_u64(usage.and_then(|u| u.get("output_tokens")));
       let cache_write_tokens = value_u64(usage.and_then(|u| u.get("cache_creation_input_tokens")));
       let cache_read_tokens = value_u64(usage.and_then(|u| u.get("cache_read_input_tokens")));
+      let total_tokens = {
+        let from_usage = value_u64(
+          usage
+            .and_then(|u| u.get("total_tokens"))
+            .or(usage.and_then(|u| u.get("totalTokens"))),
+        );
+        if from_usage > 0 {
+          from_usage
+        } else {
+          total_tokens_with_cache(
+            input_tokens,
+            output_tokens,
+            cache_read_tokens,
+            cache_write_tokens,
+          )
+        }
+      };
       let cost = value_f64(v.get("costUSD"));
 
       if input_tokens == 0
@@ -429,6 +458,7 @@ fn scan_claude_incremental(offsets: &mut HashMap<String, u64>) -> Vec<UsageEntry
         output_tokens,
         cache_read_tokens,
         cache_write_tokens,
+        total_tokens,
         cost,
       });
     }
@@ -506,7 +536,7 @@ fn scan_codex_incremental(offsets: &mut HashMap<String, u64>, file_models: &mut 
 
     // Restore last known model for this file (for incremental reads)
     let mut current_model: Option<String> = file_models.get(&key).cloned();
-    let mut prev_total: Option<(u64, u64, u64)> = None;
+    let mut prev_total: Option<(u64, u64, u64, u64)> = None;
 
     let reader = BufReader::new(&mut file);
     for line in reader.lines().flatten() {
@@ -541,29 +571,51 @@ fn scan_codex_incremental(offsets: &mut HashMap<String, u64>, file_models: &mut 
         continue;
       }
 
-      let (input_tokens, output_tokens, cache_read_tokens) =
+      let (input_tokens, output_tokens, cache_read_tokens, total_tokens) =
         if let Some(last) = v.pointer("/payload/info/last_token_usage") {
-          (
-            value_u64(last.get("input_tokens")),
-            value_u64(last.get("output_tokens")),
-            value_u64(last.get("cached_input_tokens").or(last.get("cache_read_input_tokens"))),
-          )
+          let input_tokens = value_u64(last.get("input_tokens"));
+          let output_tokens = value_u64(last.get("output_tokens"));
+          let cache_read_tokens =
+            value_u64(last.get("cached_input_tokens").or(last.get("cache_read_input_tokens")));
+          let total_tokens = {
+            let explicit_total = value_u64(last.get("total_tokens"));
+            if explicit_total > 0 {
+              explicit_total
+            } else {
+              total_tokens_without_cache(input_tokens, output_tokens)
+            }
+          };
+          (input_tokens, output_tokens, cache_read_tokens, total_tokens)
         } else if let Some(total) = v.pointer("/payload/info/total_token_usage") {
           let cur_in = value_u64(total.get("input_tokens"));
           let cur_out = value_u64(total.get("output_tokens"));
-          let cur_cached = value_u64(total.get("cached_input_tokens").or(total.get("cache_read_input_tokens")));
-          let delta = if let Some((pi, po, pc)) = prev_total {
-            (cur_in.saturating_sub(pi), cur_out.saturating_sub(po), cur_cached.saturating_sub(pc))
-          } else {
-            (cur_in, cur_out, cur_cached)
+          let cur_cached =
+            value_u64(total.get("cached_input_tokens").or(total.get("cache_read_input_tokens")));
+          let cur_total = {
+            let explicit_total = value_u64(total.get("total_tokens"));
+            if explicit_total > 0 {
+              explicit_total
+            } else {
+              total_tokens_without_cache(cur_in, cur_out)
+            }
           };
-          prev_total = Some((cur_in, cur_out, cur_cached));
+          let delta = if let Some((pi, po, pc, pt)) = prev_total {
+            (
+              cur_in.saturating_sub(pi),
+              cur_out.saturating_sub(po),
+              cur_cached.saturating_sub(pc),
+              cur_total.saturating_sub(pt),
+            )
+          } else {
+            (cur_in, cur_out, cur_cached, cur_total)
+          };
+          prev_total = Some((cur_in, cur_out, cur_cached, cur_total));
           delta
         } else {
           continue;
         };
 
-      if input_tokens == 0 && output_tokens == 0 && cache_read_tokens == 0 {
+      if input_tokens == 0 && output_tokens == 0 && cache_read_tokens == 0 && total_tokens == 0 {
         continue;
       }
 
@@ -583,15 +635,18 @@ fn scan_codex_incremental(offsets: &mut HashMap<String, u64>, file_models: &mut 
         .or_else(|| v.pointer("/payload/time"));
       let timestamp = normalize_timestamp(ts_val).unwrap_or_else(|| fallback_ts.clone());
 
+      let uncached_input_tokens = input_tokens.saturating_sub(cache_read_tokens);
+
       out.push(UsageEntry {
         timestamp,
         tool: "Codex".to_string(),
-        cost: estimate_cost(&model, input_tokens, output_tokens, cache_read_tokens, 0),
+        cost: estimate_cost(&model, uncached_input_tokens, output_tokens, cache_read_tokens, 0),
         model,
         input_tokens,
         output_tokens,
         cache_read_tokens,
         cache_write_tokens: 0,
+        total_tokens,
       });
     }
 
@@ -644,6 +699,23 @@ fn scan_opencode_incremental(seen_files: &mut HashMap<String, u64>) -> Vec<Usage
     let output_tokens = value_u64(v.pointer("/tokens/output"));
     let cache_read_tokens = value_u64(v.pointer("/tokens/cache/read"));
     let cache_write_tokens = value_u64(v.pointer("/tokens/cache/write"));
+    let total_tokens = {
+      let explicit_total = value_u64(
+        v.pointer("/tokens/total")
+          .or_else(|| v.pointer("/tokens/total_tokens"))
+          .or_else(|| v.get("total_tokens")),
+      );
+      if explicit_total > 0 {
+        explicit_total
+      } else {
+        total_tokens_with_cache(
+          input_tokens,
+          output_tokens,
+          cache_read_tokens,
+          cache_write_tokens,
+        )
+      }
+    };
     let cost = value_f64(v.get("cost"));
 
     if input_tokens == 0
@@ -673,6 +745,7 @@ fn scan_opencode_incremental(seen_files: &mut HashMap<String, u64>) -> Vec<Usage
       output_tokens,
       cache_read_tokens,
       cache_write_tokens,
+      total_tokens,
       cost,
     });
 

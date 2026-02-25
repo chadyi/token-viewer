@@ -93,12 +93,7 @@ function localDayKey(d: Date): string {
 }
 
 function sumTokens(e: UsageEntry): number {
-  return (
-    e.input_tokens +
-    e.output_tokens +
-    e.cache_read_tokens +
-    e.cache_write_tokens
-  )
+  return e.total_tokens
 }
 
 export default function Dashboard() {

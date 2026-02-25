@@ -19,6 +19,7 @@ type DateRow = {
   output_tokens: number
   cache_read_tokens: number
   cache_write_tokens: number
+  total_tokens: number
   cost: number
 }
 
@@ -29,6 +30,7 @@ type ModelRow = {
   output_tokens: number
   cache_read_tokens: number
   cache_write_tokens: number
+  total_tokens: number
   cost: number
 }
 
@@ -77,10 +79,6 @@ function isoWeekKey(d: Date): string {
   return `${isoYear}-W${String(week).padStart(2, '0')}`
 }
 
-function totalTokens(r: Pick<ModelRow, 'input_tokens' | 'output_tokens' | 'cache_read_tokens' | 'cache_write_tokens'>): number {
-  return r.input_tokens + r.output_tokens + r.cache_read_tokens + r.cache_write_tokens
-}
-
 export default function DateTable({ data }: Props) {
   const [granularity, setGranularity] = useState<Granularity>('day')
   const [expandedKey, setExpandedKey] = useState<string | null>(null)
@@ -116,6 +114,7 @@ export default function DateTable({ data }: Props) {
           output_tokens: 0,
           cache_read_tokens: 0,
           cache_write_tokens: 0,
+          total_tokens: 0,
           cost: 0,
         } satisfies DateRow)
 
@@ -124,6 +123,7 @@ export default function DateTable({ data }: Props) {
       cur.output_tokens += e.output_tokens
       cur.cache_read_tokens += e.cache_read_tokens
       cur.cache_write_tokens += e.cache_write_tokens
+      cur.total_tokens += e.total_tokens
       cur.cost += e.cost
       rowMap.set(key, cur)
 
@@ -152,6 +152,7 @@ export default function DateTable({ data }: Props) {
           output_tokens: 0,
           cache_read_tokens: 0,
           cache_write_tokens: 0,
+          total_tokens: 0,
           cost: 0,
         } satisfies ModelRow)
 
@@ -160,6 +161,7 @@ export default function DateTable({ data }: Props) {
       cur.output_tokens += e.output_tokens
       cur.cache_read_tokens += e.cache_read_tokens
       cur.cache_write_tokens += e.cache_write_tokens
+      cur.total_tokens += e.total_tokens
       cur.cost += e.cost
       map.set(e.model, cur)
     }
@@ -167,7 +169,7 @@ export default function DateTable({ data }: Props) {
     return [...map.values()].sort((a, b) => {
       const costDiff = b.cost - a.cost
       if (costDiff !== 0) return costDiff
-      return totalTokens(b) - totalTokens(a)
+      return b.total_tokens - a.total_tokens
     })
   }, [entriesByKey, expandedKey])
 
@@ -185,6 +187,7 @@ export default function DateTable({ data }: Props) {
           output_tokens: 0,
           cache_read_tokens: 0,
           cache_write_tokens: 0,
+          total_tokens: 0,
           cost: 0,
         } satisfies ModelRow)
 
@@ -193,6 +196,7 @@ export default function DateTable({ data }: Props) {
       cur.output_tokens += e.output_tokens
       cur.cache_read_tokens += e.cache_read_tokens
       cur.cache_write_tokens += e.cache_write_tokens
+      cur.total_tokens += e.total_tokens
       cur.cost += e.cost
       map.set(e.model, cur)
     }
@@ -200,7 +204,7 @@ export default function DateTable({ data }: Props) {
     return [...map.values()].sort((a, b) => {
       const costDiff = b.cost - a.cost
       if (costDiff !== 0) return costDiff
-      return totalTokens(b) - totalTokens(a)
+      return b.total_tokens - a.total_tokens
     })
   }, [data, granularity])
 
@@ -295,7 +299,7 @@ export default function DateTable({ data }: Props) {
                     <td style={{ padding: '10px 8px', textAlign: 'right' }}>{numFmt.format(mr.output_tokens)}</td>
                     <td style={{ padding: '10px 8px', textAlign: 'right' }}>{numFmt.format(mr.cache_read_tokens)}</td>
                     <td style={{ padding: '10px 8px', textAlign: 'right' }}>{numFmt.format(mr.cache_write_tokens)}</td>
-                    <td style={{ padding: '10px 8px', textAlign: 'right' }}>{numFmt.format(totalTokens(mr))}</td>
+                    <td style={{ padding: '10px 8px', textAlign: 'right' }}>{numFmt.format(mr.total_tokens)}</td>
                     <td style={{ padding: '10px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>{usdFmt.format(mr.cost)}</td>
                   </tr>
                 ))
@@ -347,7 +351,7 @@ export default function DateTable({ data }: Props) {
                         {numFmt.format(r.cache_write_tokens)}
                       </td>
                       <td style={{ padding: '10px 8px', textAlign: 'right' }}>
-                        {numFmt.format(totalTokens(r))}
+                        {numFmt.format(r.total_tokens)}
                       </td>
                       <td style={{ padding: '10px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                         {usdFmt.format(r.cost)}
@@ -432,7 +436,7 @@ export default function DateTable({ data }: Props) {
                                           {numFmt.format(mr.cache_write_tokens)}
                                         </td>
                                         <td style={{ padding: '8px 8px', textAlign: 'right' }}>
-                                          {numFmt.format(totalTokens(mr))}
+                                          {numFmt.format(mr.total_tokens)}
                                         </td>
                                         <td
                                           style={{
