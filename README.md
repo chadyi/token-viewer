@@ -14,6 +14,10 @@ Built with **Tauri v2 + React 19 + TypeScript**.
 
 > If Token Viewer helps you, please star the repo ⭐
 
+## Quick Demo
+
+![Token Viewer Demo](docs/screenshots/token-viewer-demo.gif)
+
 ---
 
 English | [简体中文](./README.zh-CN.md)

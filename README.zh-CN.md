@@ -18,6 +18,10 @@ Token Viewer 是一个**本地优先（Local-first）**的桌面应用，用来�
 
 > 如果这个项目对你有帮助，欢迎点个 Star ⭐
 
+## 快速演示
+
+![Token Viewer Demo](docs/screenshots/token-viewer-demo.gif)
+
 ---
 
 [English](./README.md) | 简体中文
