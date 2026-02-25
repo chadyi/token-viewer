@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://raw.githubusercontent.com/chadyi/token-viewer/master/public/sitemap.xml

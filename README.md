@@ -1,48 +1,75 @@
-# Token Viewer
+# Token Viewer — AI Token Usage & Cost Tracker for Claude Code, Codex CLI, and OpenCode
 
-A desktop application for visualizing token usage and costs from AI coding tools (Claude Code, Codex CLI, OpenCode).
+[![Release](https://img.shields.io/github/v/release/chadyi/token-viewer?display_name=tag)](https://github.com/chadyi/token-viewer/releases)
+[![Build](https://img.shields.io/github/actions/workflow/status/chadyi/token-viewer/build.yml?label=build)](https://github.com/chadyi/token-viewer/actions/workflows/build.yml)
+[![License](https://img.shields.io/github/license/chadyi/token-viewer)](./LICENSE)
+[![Stars](https://img.shields.io/github/stars/chadyi/token-viewer?style=social)](https://github.com/chadyi/token-viewer/stargazers)
 
-Built with [Tauri v2](https://tauri.app/) + React 19 + TypeScript.
+A **local-first desktop app** to analyze **token usage** and **estimated AI cost** from:
+- Claude Code
+- Codex CLI
+- OpenCode
+
+Built with **Tauri v2 + React 19 + TypeScript**.
+
+> If Token Viewer helps you, please star the repo ⭐
+
+---
+
+English | [简体中文](./README.zh-CN.md)
+
+## Why Token Viewer
+
+Most coding-agent users can see logs, but not a clear answer to:
+- How many tokens did I use today/week/month?
+- Which model is expensive?
+- Is cache helping or just noise?
+
+Token Viewer turns raw local logs into a clean dashboard with trend charts and per-model breakdowns.
+
+## Key Features
+
+- **Local-only**: scans local JSON/JSONL logs, no server required
+- **Fast incremental refresh**: remembers file offsets for quick updates
+- **Token analytics dashboard**: requests, input/output tokens, totals, cost
+- **Cost estimation**: based on LiteLLM pricing tables (supports tiered rates)
+- **Date grouping**: Day / Week / Month / Year / All
+- **Model drill-down**: click rows to expand per-model usage details
+- **Cross-platform desktop**: Windows, macOS (Intel + Apple Silicon), Linux
 
 ## Screenshots
 
 ### Dashboard
-Stats cards, token usage trend chart, and tool breakdown pie chart.
-
 ![Dashboard](docs/screenshots/dashboard.png)
 
-### By Date (with expandable detail)
-Group usage by Day / Week / Month / Year. Click any row to expand per-model breakdown.
-
+### By Date (expandable)
 ![By Date](docs/screenshots/bydate.png)
 
 ### By Model (All)
-Switch to "All" to see a flat table of all models sorted by cost.
-
 ![By Model](docs/screenshots/bymodel.png)
-
-## Features
-
-- **Local-only** — scans JSONL/JSON logs on your machine, no data leaves your computer
-- **Incremental scan** — remembers file offsets, refreshes in milliseconds
-- **Accurate cost estimation** — uses LiteLLM pricing with tiered rates (200k+ token threshold)
-- **Multi-tool support** — Claude Code, Codex CLI, OpenCode
-- **Dashboard** — total requests, tokens, cost at a glance
-- **Charts** — token usage by day (area chart), breakdown by tool (pie chart)
-- **Flexible date grouping** — Day / Week / Month / Year / All (By Model)
-- **Expandable detail rows** — click any date row to see per-model breakdown
-- **Cross-platform** — Windows, macOS (Intel + Apple Silicon), Linux
 
 ## Download
 
-Pre-built installers are available on the [Releases](../../releases) page:
+Pre-built installers are available in **[Releases](https://github.com/chadyi/token-viewer/releases)**:
 
 | Platform | Format |
-|----------|--------|
+| --- | --- |
 | Windows | `.msi`, `.exe` |
 | macOS (Apple Silicon) | `.dmg` |
 | macOS (Intel) | `.dmg` |
 | Linux | `.deb`, `.AppImage`, `.rpm` |
+
+## Supported Log Sources
+
+Token Viewer currently scans:
+
+- **Claude Code**
+  - `~/.config/claude/projects/**/*.jsonl`
+  - `~/.claude/projects/**/*.jsonl`
+- **Codex CLI**
+  - `~/.codex/sessions/**/*.jsonl`
+- **OpenCode**
+  - `~/.local/share/opencode/storage/message/**/*.json`
 
 ## Development
 
@@ -65,15 +92,9 @@ npm run tauri dev
 npm run tauri build
 ```
 
-## How It Works
+## Search Keywords
 
-Token Viewer scans local log files from:
-
-- **Claude Code** — `~/.claude/projects/**/conversations/*.jsonl`
-- **Codex CLI** — `~/.codex/conversations/*.jsonl`
-- **OpenCode** — `~/.opencode/sessions/*/session.json`
-
-It parses each request's token counts (input, output, cache read, cache write) and estimates cost using model pricing data from [LiteLLM](https://github.com/BerriAI/litellm).
+AI token tracker, token usage dashboard, token cost viewer, Claude Code token usage, Codex CLI token usage, OpenCode token analytics, local AI cost monitor, Tauri desktop analytics.
 
 ## License
 
